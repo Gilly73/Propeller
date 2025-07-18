@@ -1,0 +1,34 @@
+2. The task
+We want you to create an API client and example code using it to submit a sign up and enquiry to
+our API.
+
+Your code should demonstrate:
+1. Creating a subscriber, including fields for:
+a. Email address (mandatory)
+b. First name (optional)
+c. Last name (optional)
+d. Date of birth (mandatory, please ensure every subscriber is at least 18 years old)
+e. Marketing consent (optional, it should be possible for people to send an enquiry
+without giving marketing consent)
+
+2. Adding the subscriber to one or more of the pre-created lists (specifically the London,
+Birmingham, and Edinburgh lists) based on their selection. Please only add them to the
+marketing lists if they gave marketing consent.
+
+3. Creating an enquiry linked to the subscriber, sending a user provided message to the API.
+
+You can use any PHP framework (at Propeller we prefer Symfony), but you should provide a REST
+API that would be suitable for use directly by a web browser using JavaScript.
+
+Please provide your solution as a Git repository, ideally on a service like GitHub, GitLab, etc.
+
+To get started, you should have been provided with the following:
+1. An OpenAPI specification showing the demo CRM API
+2. Documentation for the API
+3. 4. The URL of an instance of the API for you to use
+An access token for the API
+Your instance of the API has had some subscriber lists created as well:
+1. A default list
+2. London
+3. Birmingham
+4. Edinburgh

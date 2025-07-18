@@ -1,0 +1,21 @@
+Hi Seeta,
+
+Thank you for applying to work at Propeller!
+
+I would like to ensure that you are aware that the salary band for the role is £40k - £50k. If so, as part of our recruitment process, to assess your skills we'd like for you to perform a small technical test.
+
+We expect that this test should take approximately two hours - but please do not spend more than four hours on this task. We will be reviewing the development tests week commencing 21st July.
+
+Our aim is to evaluate your approach to problem solving and integrating with an API rather than ensuring that you know the right piece of trivia or ensuring that the code is 100% perfect. If you feel there are more improvements you could make, or there's functionality that you do not have time to complete, please document these as part of your submission.
+
+We want to understand your skills and experience, so please do not use AI for this task.
+
+The test brief is attached as a PDF to this email, along with some supporting documentation.
+
+API endpoint: https://devtest-crm-api.standard.aws.prop.cm/
+Your HTTP bearer token: 01JZWVCH8CYK75VCZPX5B57SGQ
+
+If you have any questions, please let me know by replying to this email and I'll answer them as soon as possible.
+
+Thanks
+Luke Towle

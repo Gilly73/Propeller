@@ -1,0 +1,873 @@
+openapi: "3.1.1"
+
+info:
+  title: Propeller demo CRM API
+  summary: A demo CRM API used for developer testing.
+  description: |
+    This is a demo CRM API for you to integrate with to send enquiries.
+    
+    There are three major entities in this API:
+    * Subscribers: these represent a person that has been entered into the CRM. There can only be one subscriber entry per email address.
+    * Subscriber lists: these contain a subset of subscribers and would be used for targeting marketing emails.
+    * Enquiries: a message sent by a subscriber.
+    
+    For subscribers, every field is optional except email address.
+
+  contact:
+    name: Propeller
+    url: https://www.propeller.co.uk
+    email: dev@propeller.co.uk
+  version: "1.0.0"
+
+servers:
+  - description: Production
+    url: "https://devtest-crm-api.standard.aws.prop.cm"
+
+components:
+  schemas:
+    ApiFieldValidationError:
+      type: object
+      properties:
+        field:
+          type: string
+          description: The field with an error.
+        message:
+          type: string
+          description: The human readable error message.
+    ApiValidationError:
+      type: object
+      properties:
+        error:
+          type: string
+          description: A machine readable error code.
+        message:
+          type: string
+          description: A human readable error message.
+        fields:
+          type: array
+          description: A list of fields with errors.
+          items:
+            $ref: "#/components/schemas/ApiFieldValidationError"
+      example:
+        error: "VALIDATION_ERROR"
+        message: "Some fields failed validation."
+        fields:
+          - field: name
+            message: This name is already in use.
+    ApiUser:
+      type: object
+      description: Summary information about the current API user
+      properties:
+        id:
+          type: string
+          description: A globally unique ID for this API user.
+        name:
+          type: string
+          description: The name for this API user.
+      example:
+        id: "01JY4K21HE12E2ZFESA80SYZYS"
+        name: "Test User"
+    Tenant:
+      type: object
+      description: Summary information about the current tenant
+      properties:
+        id:
+          type: string
+          description: A globally unique ID for this tenant.
+        name:
+          type: string
+          description: The name for this tenant.
+      example:
+        id: "01JY4K1Q0E9WT8C6VW3SPS99D1"
+        name: "Propeller"
+    List:
+      type: object
+      description: A subscriber list
+      properties:
+        id:
+          type: string
+          description: A globally unique ID for this list.
+        name:
+          type: string
+          description: The name for this list.
+        createdAt:
+          type: string
+          description: The creation time of this subscriber entry in ISO 8601 format
+        updatedAt:
+          type: string
+          description: The last update time of this subscriber entry in ISO 8601 format
+      example:
+        id: "01JY4Q9EKKCMXSVB7M682S2RNQ"
+        name: "Test list"
+        createdAt: "2025-06-20T14:27:34+00:00"
+        updatedAt: "2025-06-20T14:35:50+00:00"
+    Subscriber:
+      type: object
+      description: A subscriber
+      properties:
+        id:
+          type: string
+          description: A globally unique ID for this subscriber.
+        emailAddress:
+          type: string
+          description: This subscriber's email address.
+        firstName:
+          type: string
+          description: This subscriber's first name.
+        lastName:
+          type: string
+          description: This subscriber's last name.
+        dateOfBirth:
+          type: string
+          description: The subscriber's date of birth, in Y-m-d format.
+        marketingConsent:
+          type: boolean
+          description: Has the subscriber consented to marketing?
+        lists:
+          type: array
+          description: The lists this subscriber belongs to.
+          items:
+            $ref: "#/components/schemas/List"
+        createdAt:
+          type: string
+          description: The creation time of this subscriber entry in ISO 8601 format
+        updatedAt:
+          type: string
+          description: The last update time of this subscriber entry in ISO 8601 format
+      example:
+        id: 01JY5AJJK35P4HZ1P60VR8P6HG
+        emailAddress: test@example.com
+        firstName: Test
+        lastName: User
+        dateOfBirth: "2000-02-28"
+        marketingConsent: true
+        lists:
+          - id: "01JY4Q9EKKCMXSVB7M682S2RNQ"
+            name: "Test list"
+        createdAt: "2025-06-20T14:27:34+00:00"
+        updatedAt: "2025-06-20T14:35:50+00:00"
+    Enquiry:
+      type: object
+      description: An enquiry belonging to a subscriber
+      properties:
+        id:
+          type: string
+          description: A globally unique ID for this enquiry.
+        message:
+          type: string
+          description: The message for this enquiry.
+        createdAt:
+          type: string
+          description: The creation time of this subscriber entry in ISO 8601 format
+        updatedAt:
+          type: string
+          description: The last update time of this subscriber entry in ISO 8601 format
+      example:
+        id: 01JY4Q9EKKCMXSVB7M682S2RNP
+        message:  |
+          Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+          
+          Etiam aliquam elit arcu. Duis pulvinar efficitur rhoncus. Pellentesque vitae hendrerit lectus, at lacinia lectus.
+          
+          Nullam fermentum dapibus arcu, eu sodales tellus faucibus id. Phasellus varius sollicitudin purus, ut sagittis mi lacinia vitae.
+        createdAt: "2025-06-20T14:27:34+00:00"
+        updatedAt: "2025-06-20T14:35:50+00:00"
+  responses:
+    UnauthorizedResponse:
+      description: Authentication is required.
+      content:
+        application/json:
+          schema:
+            type: object
+            description: Your request failed due to an error.
+            properties:
+              error:
+                type: string
+                description: A machine readable error code.
+              message:
+                type: string
+                description: A human readable error message.
+            example:
+              error: "UNAUTHORIZED"
+              message: "You must provide an access token to access this resource."
+    AccessDeniedResponse:
+      description: Access is denied.
+      content:
+        application/json:
+          schema:
+            properties:
+              error:
+                type: string
+                description: A machine readable error code.
+              message:
+                type: string
+                description: A human readable error message.
+            example:
+              error: "ACCESS_DENIED"
+              message: "Access denied."
+    NotFoundResponse:
+      description: No entity was found matching your request.
+      content:
+        application/json:
+          schema:
+            properties:
+              error:
+                type: string
+                description: A machine readable error code.
+              message:
+                type: string
+                description: A human readable error message.
+            example:
+              error: "NOT_FOUND"
+              message: "Not found."
+    ValidationErrorResponse:
+      description: There was a validation error found when processing your request.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiValidationError"
+
+  securitySchemes:
+    ApiUserAuthentication:
+      type: http
+      scheme: bearer
+
+tags:
+  - name: misc
+    description: Endpoints that don't belong to any other category
+  - name: subscriber lists
+    description: Endpoints that are for handling subscriber lists
+  - name: subscribers
+    description: Endpoints that are for handling subscribers
+  - name: enquiries
+    description: Endpoints for handling enquiries made by subscribers
+
+paths:
+  /:
+    get:
+      operationId: getStatus
+      tags:
+        - misc
+      summary: Check API status
+      description: Get the current API status
+      responses:
+        "200":
+          description: The API is running normally.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                example:
+                  status: "ok"
+  /api/me:
+    get:
+      operationId: getCurrentUserDetails
+      tags:
+        - misc
+      summary: Get the current API user
+      description: Get details for the current API user and tenant
+      security:
+        - ApiUserAuthentication: []
+      responses:
+        "401":
+          $ref: "#/components/responses/UnauthorizedResponse"
+        "403":
+          $ref: "#/components/responses/AccessDeniedResponse"
+        "200":
+          description: Your current API user and tenant details.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  apiUser:
+                    $ref: "#/components/schemas/ApiUser"
+                  tenant:
+                    $ref: "#/components/schemas/Tenant"
+  /api/lists:
+    get:
+      operationId: getAllLists
+      tags:
+        - subscriber lists
+      summary: Get all lists
+      description: Get all of the lists for the current tenant
+      security:
+        - ApiUserAuthentication: []
+      responses:
+        "401":
+          $ref: "#/components/responses/UnauthorizedResponse"
+        "403":
+          $ref: "#/components/responses/AccessDeniedResponse"
+        "200":
+          description: All of the lists for your current tenant.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  lists:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/List"
+  /api/list:
+    post:
+      operationId: createList
+      tags:
+        - subscriber lists
+      summary: Create a list
+      description: Create a new list for the current tenant
+      security:
+        - ApiUserAuthentication: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                  maxLength: 255
+                  description: The name of the new list. Must be unique in your tenant.
+      responses:
+        "400":
+          $ref: "#/components/responses/ValidationErrorResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedResponse"
+        "403":
+          $ref: "#/components/responses/AccessDeniedResponse"
+        "404":
+          $ref: "#/components/responses/NotFoundResponse"
+        "200":
+          description: The successfully created list.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  list:
+                    $ref: "#/components/schemas/List"
+  /api/list/{listId}:
+    get:
+      operationId: getList
+      tags:
+        - subscriber lists
+      summary: Get a list
+      description: Get a single list for the current tenant
+      security:
+        - ApiUserAuthentication: []
+      parameters:
+        - name: listId
+          in: path
+          description: The list ID to fetch
+          required: true
+          schema:
+            type: string
+      responses:
+        "401":
+          $ref: "#/components/responses/UnauthorizedResponse"
+        "403":
+          $ref: "#/components/responses/AccessDeniedResponse"
+        "404":
+          $ref: "#/components/responses/NotFoundResponse"
+        "200":
+          description: The list you requested.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  list:
+                    $ref: "#/components/schemas/List"
+    delete:
+      operationId: deleteList
+      tags:
+        - subscriber lists
+      summary: Delete a list
+      description: Delete a list from the current tenant
+      security:
+        - ApiUserAuthentication: []
+      parameters:
+        - name: listId
+          in: path
+          description: The list ID to delete
+          required: true
+          schema:
+            type: string
+      responses:
+        "401":
+          $ref: "#/components/responses/UnauthorizedResponse"
+        "403":
+          $ref: "#/components/responses/AccessDeniedResponse"
+        "404":
+          $ref: "#/components/responses/NotFoundResponse"
+        "204":
+          description: The list was successfully deleted.
+  /api/subscribers:
+    get:
+      operationId: getSubscribers
+      tags:
+        - subscribers
+      summary: Get all subscribers
+      description: Get all of the subscribers for the current tenant
+      security:
+        - ApiUserAuthentication: []
+      responses:
+        "401":
+          $ref: "#/components/responses/UnauthorizedResponse"
+        "403":
+          $ref: "#/components/responses/AccessDeniedResponse"
+        "200":
+          description: All of the subscribers for your current tenant.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  subscribers:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Subscriber"
+  /api/subscriber:
+    post:
+      operationId: createSubscriber
+      tags:
+        - subscribers
+      summary: Create a subscriber
+      description: |
+        Create a new subscriber.
+        
+        If there's already a subscriber with this email address, this call will fail.
+      security:
+        - ApiUserAuthentication: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - emailAddress
+                - marketingConsent
+              properties:
+                emailAddress:
+                  type: string
+                  description: The email address of the subscriber. Must be unique. This is required.
+                  maxLength: 255
+                firstName:
+                  type:
+                    - string
+                    - null
+                  description: The subscriber's first name. This is optional.
+                  maxLength: 255
+                  nullable: true
+                lastName:
+                  type:
+                    - string
+                    - null
+                  description: The subscriber's first name. This is optional.
+                  maxLength: 255
+                  nullable: true
+                dateOfBirth:
+                  type:
+                    - string
+                    - null
+                  description: The subscriber's date of birth, in Y-m-d format. This is optional.
+                  nullable: true
+                marketingConsent:
+                  type: boolean
+                  description: Has the subscriber consented to marketing? This is required.
+                  nullable: false
+                lists:
+                  type: array
+                  description: An array of list IDs. This is optional.
+                  items:
+                    type: string
+                    description: A list ID
+              example:
+                emailAddress: test@example.com
+                firstName: Test
+                lastName: User
+                dateOfBirth: "2000-02-28"
+                marketingConsent: true
+                lists:
+                  - 01JY4Q9EKKCMXSVB7M682S2RNQ
+      responses:
+        "400":
+          $ref: "#/components/responses/ValidationErrorResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedResponse"
+        "403":
+          $ref: "#/components/responses/AccessDeniedResponse"
+        "404":
+          $ref: "#/components/responses/NotFoundResponse"
+        "200":
+          description: The successfully created subscriber.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  subscriber:
+                    $ref: "#/components/schemas/Subscriber"
+    put:
+      operationId: createOrUpdateSubscriber
+      tags:
+        - subscribers
+      summary: Create or update a subscriber
+      description: |
+        Create a new subscriber using the email address provided.
+        
+        If there's already a subscriber with that email address, update it instead.
+      security:
+        - ApiUserAuthentication: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - emailAddress
+              properties:
+                emailAddress:
+                  type: string
+                  description: The email address of the subscriber. This is required.
+                  maxLength: 255
+                firstName:
+                  type:
+                    - string
+                    - null
+                  description: The subscriber's first name. This is optional.
+                  maxLength: 255
+                  nullable: true
+                lastName:
+                  type:
+                    - string
+                    - null
+                  description: The subscriber's first name. This is optional.
+                  maxLength: 255
+                  nullable: true
+                dateOfBirth:
+                  type:
+                    - string
+                    - null
+                  description: The subscriber's date of birth, in Y-m-d format. This is optional.
+                  nullable: true
+                marketingConsent:
+                  type: 
+                    - boolean
+                    - null
+                  description: |
+                    Has the subscriber consented to marketing?
+
+                    true or false will update the value, null or not passing the field at all will leave their existing consent alone.
+                  nullable: true
+                lists:
+                  type: array
+                  description: |
+                    An array of list IDs.
+                    
+                    An updated subscriber will be added to any lists here,
+                    but will not be removed from any of their existing lists.
+                  items:
+                    type: string
+                    description: A list ID
+            examples:
+              minimal:
+                summary: A minimal submission
+                value:
+                  emailAddress: test@example.com
+                  firstName: null
+                  lastName: null
+                  dateOfBirth: null
+                  marketingConsent: null
+              moreFields:
+                summary: A submission with more fields
+                value:
+                  emailAddress: test@example.com
+                  firstName: Test
+                  lastName: User
+                  dateOfBirth: null
+                  marketingConsent: true
+                  lists:
+                    - 01JY4Q9EKKCMXSVB7M682S2RNQ
+              allFields:
+                summary: A submission with all fields
+                value:
+                  emailAddress: test@example.com
+                  firstName: Test
+                  lastName: User
+                  dateOfBirth: 2000-02-28
+                  marketingConsent: true
+                  lists:
+                    - 01JY4Q9EKKCMXSVB7M682S2RNQ
+      responses:
+        "400":
+          $ref: "#/components/responses/ValidationErrorResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedResponse"
+        "403":
+          $ref: "#/components/responses/AccessDeniedResponse"
+        "404":
+          $ref: "#/components/responses/NotFoundResponse"
+        "200":
+          description: The successfully created subscriber.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  subscriber:
+                    $ref: "#/components/schemas/Subscriber"
+
+  /api/subscriber/{subscriberId}:
+    get:
+      operationId: getSubscriber
+      tags:
+        - subscribers
+      summary: Get a subscriber
+      description: Get a single existing subscriber for the current tenant
+      security:
+        - ApiUserAuthentication: []
+      parameters:
+        - name: subscriberId
+          in: path
+          description: The subscriber ID to fetch
+          required: true
+          schema:
+            type: string
+      responses:
+        "401":
+          $ref: "#/components/responses/UnauthorizedResponse"
+        "403":
+          $ref: "#/components/responses/AccessDeniedResponse"
+        "404":
+          $ref: "#/components/responses/NotFoundResponse"
+        "200":
+          description: The subscriber you requested.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  subscriber:
+                    $ref: "#/components/schemas/Subscriber"
+    patch:
+      operationId: updateSubscriber
+      tags:
+        - subscribers
+      summary: Update a subscriber
+      description: |
+        Update a subscriber by ID.
+        
+        You cannot change a subscriber's email address using this method.
+      security:
+        - ApiUserAuthentication: []
+      parameters:
+        - name: subscriberId
+          in: path
+          description: The subscriber ID to update
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                firstName:
+                  type:
+                    - string
+                    - null
+                  description: The subscriber's first name.
+                  maxLength: 255
+                  nullable: true
+                lastName:
+                  type:
+                    - string
+                    - null
+                  description: The subscriber's first name.
+                  maxLength: 255
+                  nullable: true
+                dateOfBirth:
+                  type:
+                    - string
+                    - null
+                  description: The subscriber's date of birth, in Y-m-d format.
+                  nullable: true
+                marketingConsent:
+                  type:
+                    - boolean
+                    - null
+                  description: |
+                    Has the subscriber consented to marketing?
+                    
+                    true or false will update the value, null or not passing the field at all will leave their existing consent alone.
+                  nullable: true
+                lists:
+                  type: array
+                  description: |
+                    An array of list IDs.
+                    
+                    The subscriber will be removed from any lists not in this array.
+                  items:
+                    type: string
+                    description: A list ID
+            examples:
+              someFields:
+                summary: A submission with some example fields
+                value:
+                  firstName: Test
+                  lastName: User
+                  dateOfBirth: null
+                  marketingConsent: false
+                  lists:
+                    - 01JY4Q9EKKCMXSVB7M682S2RNQ
+              allFields:
+                summary: A submission with all fields
+                value:
+                  firstName: Test
+                  lastName: User
+                  dateOfBirth: 2000-02-28
+                  marketingConsent: true
+                  lists:
+                    - 01JY4Q9EKKCMXSVB7M682S2RNQ
+      responses:
+        "400":
+          $ref: "#/components/responses/ValidationErrorResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedResponse"
+        "403":
+          $ref: "#/components/responses/AccessDeniedResponse"
+        "404":
+          $ref: "#/components/responses/NotFoundResponse"
+        "200":
+          description: The updated subscriber.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  subscriber:
+                    $ref: "#/components/schemas/Subscriber"
+    delete:
+      operationId: deleteSubscriber
+      tags:
+        - subscribers
+      summary: Delete a subscriber
+      description: Delete a subscriber from the current tenant
+      security:
+        - ApiUserAuthentication: []
+      parameters:
+        - name: subscriberId
+          in: path
+          description: The subscriber ID to delete
+          required: true
+          schema:
+            type: string
+      responses:
+        "401":
+          $ref: "#/components/responses/UnauthorizedResponse"
+        "403":
+          $ref: "#/components/responses/AccessDeniedResponse"
+        "404":
+          $ref: "#/components/responses/NotFoundResponse"
+        "204":
+          description: The subscriber was successfully deleted.
+
+  /api/subscriber/{subscriberId}/enquiries:
+    get:
+      operationId: getEnquiriesForSubscriber
+      tags:
+        - enquiries
+      summary: Get enquiries for subscriber
+      description: Get all of the enquiries for a specific subscriber in the current tenant
+      security:
+        - ApiUserAuthentication: []
+      parameters:
+        - name: subscriberId
+          in: path
+          description: The subscriber ID to fetch enquiries for
+          required: true
+          schema:
+            type: string
+      responses:
+        "401":
+          $ref: "#/components/responses/UnauthorizedResponse"
+        "403":
+          $ref: "#/components/responses/AccessDeniedResponse"
+        "404":
+          $ref: "#/components/responses/NotFoundResponse"
+        "200":
+          description: All of the subscribers for your current tenant.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  subscriber:
+                    $ref: "#/components/schemas/Subscriber"
+                  enquiries:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Enquiry"
+
+  /api/subscriber/{subscriberId}/enquiry:
+    post:
+      operationId: createEnquiryForSubscriber
+      tags:
+        - enquiries
+      summary: Create an enquiry
+      description: |
+        Create an enquiry for a subscriber.
+      security:
+        - ApiUserAuthentication: [ ]
+      parameters:
+        - name: subscriberId
+          in: path
+          description: The subscriber ID to add an enquiry for
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - message
+              properties:
+                message:
+                  type: string
+                  description: The message for the enquiry.
+              example:
+                message: |
+                  Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+                  
+                  Etiam aliquam elit arcu. Duis pulvinar efficitur rhoncus. Pellentesque vitae hendrerit lectus, at lacinia lectus.
+                  
+                  Nullam fermentum dapibus arcu, eu sodales tellus faucibus id. Phasellus varius sollicitudin purus, ut sagittis mi lacinia vitae.
+      responses:
+        "400":
+          $ref: "#/components/responses/ValidationErrorResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedResponse"
+        "403":
+          $ref: "#/components/responses/AccessDeniedResponse"
+        "404":
+          $ref: "#/components/responses/NotFoundResponse"
+        "200":
+          description: The successfully created enquiry.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  subscriber:
+                    $ref: "#/components/schemas/Subscriber"
+                  enquiry:
+                    $ref: "#/components/schemas/Enquiry"
