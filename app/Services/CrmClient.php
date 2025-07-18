@@ -57,6 +57,7 @@ class CrmClient
         }
 
         $lists = $this->getLists();
+        $lists = collect($lists->get('lists'));
 
         $listIds = $lists->whereIn('name', $payloadDto->subscriptionLists)->pluck('id')->toArray();
 
@@ -66,7 +67,9 @@ class CrmClient
                 ->pluck('id')
                 ->toArray();
         }
+
         return $payloadDto->withListIds($listIds);
+
     }
 
     public function getLists(): Collection

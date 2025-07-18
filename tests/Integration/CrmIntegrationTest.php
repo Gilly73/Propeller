@@ -1,4 +1,5 @@
 <?php
+
 namespace Tests\Integration;
 
 use Tests\TestCase;
@@ -15,7 +16,6 @@ class CrmIntegrationTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        Http::withoutMocking();
         $this->client = new CrmClient();
     }
 
@@ -25,12 +25,13 @@ class CrmIntegrationTest extends TestCase
         $lists = $this->client->getLists();
 
         $this->assertNotEmpty($lists);
-        $first = $lists->first();
-        $this->assertIsArray($first);
-        $this->assertArrayHasKey('id',   $first);
-        $this->assertArrayHasKey('name', $first);
+        $data = $lists->first();
+        $this->assertIsArray($data);
+        $this->assertArrayHasKey('id',   $data[0]);
+        $this->assertArrayHasKey('name', $data[0]);
 
-        $names = $lists->pluck('name')->all();
+        $names = collect($data)->pluck('name')->all();
+
         $this->assertContains('London',     $names);
         $this->assertContains('Edinburgh',  $names);
     }
@@ -38,21 +39,35 @@ class CrmIntegrationTest extends TestCase
 
     public function test_upsert_subscriber_against_live_crm(): void
     {
+
         $lists = $this->client->getLists();
-        $firstListId = $lists->first()['id'];
+        $this->assertNotEmpty($lists->get('lists'));
+        $allLists = $lists->get('lists');
 
-        $dto = new SubscriberPayloadDto(
-            emailAddress:     'int-test+'.time().'@example.com',
-            firstName:        'Integration',
-            lastName:         'Tester',
-            dateOfBirth:      new DateTimeImmutable('-20 years'),
-            marketingConsent: true,
-            lists:            [$firstListId],
-        );
+        $listToUse = $allLists[1] ?? $allLists[0];
 
-        $subscriberId = $this->client->upsertSubscriber($dto);
+        $this->assertArrayHasKey('name', $listToUse);
 
-        $this->assertIsInt($subscriberId);
-        $this->assertGreaterThan(0, $subscriberId);
+        $dto = SubscriberPayloadDto::fromArray([
+            'emailAddress'      => 'int-test+' . time() . '@example.com',
+            'firstName'         => 'Integration',
+            'lastName'          => 'Tester',
+            'dateOfBirth'       => now()->subYears(20)->toDateString(),
+            'marketingConsent'  => true,
+            'subscriptionLists' => [$listToUse['name']],
+        ]);
+
+
+        $response = $this->client->upsertSubscriber($dto);
+        $this->assertInstanceOf(\Illuminate\Http\Client\Response::class, $response);
+        $this->assertTrue($response->successful());
+
+        $data = $response->json();
+
+        $this->assertArrayHasKey('subscriber', $data);
+        $this->assertIsArray($data['subscriber']);
+
+        $this->assertArrayHasKey('id', $data['subscriber']);
+        $this->assertNotEmpty($data['subscriber']['id']);
     }
 }
