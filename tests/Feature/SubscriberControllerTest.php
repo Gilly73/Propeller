@@ -8,6 +8,8 @@ use Tests\TestCase;
 use Mockery;
 use App\Services\CrmClient;
 use App\DTO\SubscriberPayloadDto;
+use GuzzleHttp\Psr7\Response as Psr7Response;
+use Illuminate\Http\Client\Response as ClientResponse;
 
 class SubscriberControllerTest extends TestCase
 {
@@ -27,19 +29,28 @@ class SubscriberControllerTest extends TestCase
             'lastName'         => $this->faker->lastName,
             'dateOfBirth'     => now()->subYears(20)->toDateString(),
             'marketingConsent' => true,
-            'subscriptionlists' => ['London'],
+            'subscriptionLists' => ['London'],
         ];
+
+        $fakeSubscriber = [
+            'id'               => '01JZZC49XKHD6MK3B12TB3SF72',
+            'emailAddress'     => $payload['emailAddress'],
+            'firstName'        => $payload['firstName'],
+            'lastName'         => $payload['lastName'],
+            'dateOfBirth'      => $payload['dateOfBirth'],
+            'marketingConsent' => $payload['marketingConsent'],
+            'lists'            => [
+                ['id' => '01JZWVCH8EQS10ZWHYXKM106X4', 'name' => 'London'],
+            ],
+            'createdAt'        => now()->toIso8601String(),
+            'updatedAt'        => now()->toIso8601String(),
+        ];
+
+        $psr7 = new Psr7Response(200, ['Content-Type' => 'application/json'], json_encode(['subscriber' => $fakeSubscriber]));
+        $responseObj = new ClientResponse($psr7);
 
         $crmMock = Mockery::mock(CrmClient::class);
         $this->app->instance(CrmClient::class, $crmMock);
-
-        $crmMock
-            ->shouldReceive('getLists')
-            ->once()
-            ->andReturn(collect([
-                ['id' => 10, 'name' => 'London'],
-                ['id' => 20, 'name' => 'Edinburgh'],
-            ]));
 
         $crmMock
             ->shouldReceive('upsertSubscriber')
@@ -51,30 +62,16 @@ class SubscriberControllerTest extends TestCase
                     $dto->lastName         === $payload['lastName'] &&
                     $dto->dateOfBirth->format('Y-m-d') === $payload['dateOfBirth'] &&
                     $dto->marketingConsent === $payload['marketingConsent'] &&
-                    $dto->lists === [10, 20];
+                    $dto->subscriptionLists   === $payload['subscriptionLists'];
             }))
-            ->andReturn([
-                'subscriber' => [
-                    'id'               => '01JZZC49XKHD6MK3B12TB3SF72',
-                    'emailAddress'     => $payload['emailAddress'],
-                    'firstName'        => $payload['firstName'],
-                    'lastName'         => $payload['lastName'],
-                    'dateOfBirth'      => $payload['dateOfBirth'],
-                    'marketingConsent' => $payload['marketingConsent'],
-                    'lists'            => [
-                        ['id' => '01JZWVCH8EQS10ZWHYXKM106X4', 'name' => 'London'],
-                    ],
-                    'createdAt'        => now()->toIso8601String(),
-                    'updatedAt'        => now()->toIso8601String(),
-                ],
-            ]);
+            ->andReturn($responseObj);
 
 
         $response = $this->postJson('/api/v1/subscriber/create', $payload);
 
         $response
-            ->assertStatus(201)
-            ->assertExactJson(['subscriber_id' => '555']);
+            ->assertStatus(200)
+            ->assertJsonPath('subscriber.id', '01JZZC49XKHD6MK3B12TB3SF72');
     }
 
     //public function test_subscriber_rejected_if_under_18(): void {}

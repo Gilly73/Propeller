@@ -10,12 +10,12 @@ use App\DTO\SubscriberResponseDto;
 
 class SubscribeController extends Controller
 {
-    public function create(CreateSubscriberRequest $request)
+    public function create(CreateSubscriberRequest $request, CrmClient $crm)
     {
         $dto = SubscriberPayloadDto::fromArray($request->validated());
-        $response = (new CrmClient())->upsertSubscriber($dto);
+        $response = $crm->upsertSubscriber($dto);
         return response()->json([
-            'subscriber' => SubscriberResponseDto::fromArray($response->json('subscriber')),
+            'subscriber' => SubscriberResponseDto::fromArray($response['subscriber']),
             'message' => 'Subscriber created successfully.',
         ], $response->status());
     }
